@@ -1,25 +1,25 @@
 pub mod circuit;
+pub mod utils;
 
-use circuit::TestCircuit;
-use dusk_jubjub::GENERATOR_EXTENDED;
+use circuit::TheCircuit;
 use dusk_plonk::prelude::*;
 use rand_core::OsRng;
 
 fn main() {
-    let label = b"transcript-arguments";
+    let label = b"proof-of-innocence";
     let pp = PublicParameters::setup(1 << 12, &mut OsRng).expect("failed to setup");
 
-    let (prover, verifier) =
-        Compiler::compile::<TestCircuit>(&pp, label).expect("failed to compile circuit");
+    let circuit = TheCircuit::default()
+        .source_list(vec!["0x0000000000000000000000000000000000000000"])
+        .block_list(vec![
+            "0x0000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000002",
+            "0x0000000000000000000000000000000000000003",
+        ]);
 
-    let circuit = TestCircuit {
-        a: BlsScalar::from(20u64),
-        b: BlsScalar::from(5u64),
-        c: BlsScalar::from(25u64),
-        d: BlsScalar::from(100u64),
-        e: JubJubScalar::from(2u64),
-        f: JubJubAffine::from(GENERATOR_EXTENDED * JubJubScalar::from(2u64)),
-    };
+    // The size of the default circuit is different from the custom circuit, so we use `compile_with_circuit` instead.
+    let (prover, verifier) = Compiler::compile_with_circuit::<TheCircuit>(&pp, label, &circuit)
+        .expect("failed to compile circuit");
 
     // Generate the proof and its public inputs
     let (proof, mut public_inputs) = prover.prove(&mut OsRng, &circuit).expect("failed to prove");
