@@ -43,3 +43,81 @@ impl TheCircuit {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TheCircuit;
+    use dusk_plonk::prelude::*;
+    use rand_core::OsRng;
+
+    #[test]
+    fn test_correct_prove() {
+        let label = b"test";
+        let pp = PublicParameters::setup(1 << 12, &mut OsRng).expect("failed to setup");
+
+        let circuit = TheCircuit::default()
+            .source_list(vec!["0x0000000000000000000000000000000000000000"])
+            .block_list(vec!["0x0000000000000000000000000000000000000001"]);
+
+        // The size of the default circuit is different from the custom circuit, so we use `compile_with_circuit` instead.
+        let (prover, verifier) = Compiler::compile_with_circuit::<TheCircuit>(&pp, label, &circuit)
+            .expect("failed to compile circuit");
+
+        // Generate the proof and its public inputs
+        let (proof, public_inputs) = prover.prove(&mut OsRng, &circuit).expect("failed to prove");
+
+        // Verify the generated proof
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("failed to verify proof");
+    }
+
+    #[test]
+    #[should_panic(expected = "failed to prove: PolynomialDegreeTooLarge")]
+    fn test_fail_prove() {
+        let label = b"test";
+        let pp = PublicParameters::setup(1 << 12, &mut OsRng).expect("failed to setup");
+
+        let circuit = TheCircuit::default()
+            .source_list(vec!["0x0000000000000000000000000000000000000000"])
+            .block_list(vec!["0x0000000000000000000000000000000000000000"]);
+
+        // The size of the default circuit is different from the custom circuit, so we use `compile_with_circuit` instead.
+        let (prover, verifier) = Compiler::compile_with_circuit::<TheCircuit>(&pp, label, &circuit)
+            .expect("failed to compile circuit");
+
+        // Generate the proof and its public inputs
+        let (proof, public_inputs) = prover.prove(&mut OsRng, &circuit).expect("failed to prove");
+
+        // Verify the generated proof
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("failed to verify proof");
+    }
+
+    #[test]
+    #[should_panic(expected = "failed to verify proof")]
+    fn test_fail_proof() {
+        let label = b"test";
+        let pp = PublicParameters::setup(1 << 12, &mut OsRng).expect("failed to setup");
+
+        let circuit = TheCircuit::default()
+            .source_list(vec!["0x0000000000000000000000000000000000000000"])
+            .block_list(vec!["0x0000000000000000000000000000000000000001"]);
+
+        // The size of the default circuit is different from the custom circuit, so we use `compile_with_circuit` instead.
+        let (prover, verifier) = Compiler::compile_with_circuit::<TheCircuit>(&pp, label, &circuit)
+            .expect("failed to compile circuit");
+
+        // Generate the proof and its public inputs
+        let (proof, mut public_inputs) =
+            prover.prove(&mut OsRng, &circuit).expect("failed to prove");
+
+        public_inputs[0] = BlsScalar::zero();
+
+        // Verify the generated proof
+        verifier
+            .verify(&proof, &public_inputs)
+            .expect("failed to verify proof");
+    }
+}

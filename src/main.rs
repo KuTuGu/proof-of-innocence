@@ -22,9 +22,7 @@ fn main() {
         .expect("failed to compile circuit");
 
     // Generate the proof and its public inputs
-    let (proof, mut public_inputs) = prover.prove(&mut OsRng, &circuit).expect("failed to prove");
-
-    // public_inputs[0] = BlsScalar::zero();
+    let (proof, public_inputs) = prover.prove(&mut OsRng, &circuit).expect("failed to prove");
 
     // Verify the generated proof
     verifier
