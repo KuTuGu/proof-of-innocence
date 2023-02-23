@@ -1,0 +1,29 @@
+name := "zkwasm"
+wasm := "pkg" / name + "_bg.wasm"
+args := "-k 19 --function " + name + " --output ./output --wasm " + wasm
+proof := "output/zkwasm.0.transcript.data"
+
+cli := env_var_or_default('ZKWASM_CLI', 'zkwasm-cli-x86')
+
+default:
+  @just --list
+
+build:
+  wasm-pack build --release
+
+setup:
+  rm -rf output
+  mkdir -p output
+  {{cli}} {{args}} setup
+
+prove:
+  {{cli}} {{args}} single-prove --private 0x00:bytes --public 0:i64
+
+verify:
+  {{cli}} {{args}} single-verify --proof {{proof}}
+
+test:
+  just build
+  just setup
+  just prove
+  just verify

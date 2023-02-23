@@ -1,0 +1,45 @@
+name: test
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  circuit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test circuit
+        run: cargo test
+
+  # Too slow 
+  # zkwasm:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with: 
+  #         submodules: recursive
+  #     - name: Build zkwasm_cli
+  #       run: |
+  #         cd zkwasm_cli
+  #         cargo +nightly build --verbose
+  #         export ZKWASM_CLI=$(pwd)/target/debug/cli
+  #     - uses: extractions/setup-just@v1
+  #     - name: Test zkwasm
+  #       run: |
+  #         cd ../zkwasm
+  #         just test
+
+  risc0:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy
+          override: true
+      - name: Test risc0
+        run: |
+          cd risc0
+          cargo run
