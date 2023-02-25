@@ -1,3 +1,6 @@
 [submodule "zkwasm_cli"]
 	path = zkwasm_cli
 	url = https://github.com/DelphinusLab/zkWasm
+[submodule "circuit/tornado_cli"]
+	path = circuit/tornado_cli
+	url = https://github.com/KuTuGu/tornado_cli

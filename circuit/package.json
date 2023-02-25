@@ -1,0 +1,19 @@
+{
+  "name": "tornado_util",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node -r esbuild-register -- src/utils/tornado.js",
+    "build": "esbuild src/utils/tornado.js --bundle --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "circomlibjs": "^0.1.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.17.10",
+    "esbuild-register": "^3.4.2"
+  }
+}
