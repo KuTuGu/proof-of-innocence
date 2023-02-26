@@ -1,25 +1,10 @@
+mod typ;
+
 use anyhow::{anyhow, Result};
 use hex::FromHex;
 use js_sys::{BigInt, Uint8Array};
 use regex::Regex;
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen(module = "/output/tornado_bundle.js")]
-extern "C" {
-    pub type TornadoUtil;
-
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> TornadoUtil;
-
-    #[wasm_bindgen(method)]
-    pub async fn init(this: &TornadoUtil);
-
-    #[wasm_bindgen(method)]
-    pub fn pedersen_hash(this: &TornadoUtil, data: Uint8Array) -> BigInt;
-}
-
-const NOTE_REGEX: &str =
-    r"^tornado-(?P<currency>\w+)-(?P<amount>[\d.]+)-(?P<netId>\d+)-0x(?P<note>[0-9a-fA-F]{124})$";
+pub use typ::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Note {
@@ -30,50 +15,74 @@ pub struct Note {
     commitment_hash: BigInt,
 }
 
-pub async fn parse_note(note: &str) -> Result<Note> {
-    let re = Regex::new(NOTE_REGEX).unwrap();
-    let caps = re
-        .captures(note)
-        .ok_or(anyhow!("Tornado note format is incorrect"))?;
-
-    let currency = caps.name("currency").unwrap().as_str().into();
-    let amount = caps.name("amount").unwrap().as_str().into();
-    let net_id = caps.name("netId").unwrap().as_str().parse().unwrap();
-    let note = <[u8; 62]>::from_hex(caps.name("note").unwrap().as_str())?;
-    let preimage = Uint8Array::from(&note[..]);
-    let nullifier = Uint8Array::from(&note[..31]);
-
-    let tornado_util = TornadoUtil::new();
-    tornado_util.init().await;
-    let commitment_hash = tornado_util.pedersen_hash(preimage);
-    let nullifier_hash = tornado_util.pedersen_hash(nullifier);
-
-    Ok(Note {
-        currency,
-        amount,
-        net_id,
-        commitment_hash,
-        nullifier_hash,
-    })
+pub struct Tornado {
+    note_list: Vec<Note>,
+    config: NetIdConfigMap,
 }
 
+impl Tornado {
+    pub async fn new(list: Vec<&str>) -> Result<Self> {
+        let tornado_util = TornadoUtil::new();
+        tornado_util.init().await;
+
+        let mut note_list = vec![];
+        for note in list {
+            let re = Regex::new(NOTE_REGEX).unwrap();
+            let caps = re
+                .captures(note)
+                .ok_or(anyhow!("Tornado note format is incorrect"))?;
+
+            let currency = caps.name("currency").unwrap().as_str().into();
+            let amount = caps.name("amount").unwrap().as_str().into();
+            let net_id = caps.name("netId").unwrap().as_str().parse().unwrap();
+            let note = <[u8; 62]>::from_hex(caps.name("note").unwrap().as_str())?;
+            let preimage = Uint8Array::from(&note[..]);
+            let nullifier = Uint8Array::from(&note[..31]);
+
+            let commitment_hash = tornado_util.pedersen_hash(preimage);
+            let nullifier_hash = tornado_util.pedersen_hash(nullifier);
+
+            note_list.push(Note {
+                currency,
+                amount,
+                net_id,
+                commitment_hash,
+                nullifier_hash,
+            })
+        }
+
+        Ok(Self {
+            note_list,
+            config: serde_json::from_str(CONFIG).unwrap(),
+        })
+    }
+
+    pub async fn check_nullifier(&self, ind: Option<u8>) -> Result<bool> {
+        todo!()
+    }
+
+    pub async fn check_block(&self, ind: Option<u8>) -> Result<bool> {
+        todo!()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wasm_bindgen::JsValue;
     use wasm_bindgen_test::*;
 
-    // https://goerli.etherscan.io/tx/0x7b5ee6c14b86509c2b401ee1ec15657f303494acfe5d786cc4081a6666f34414
-    const NOTE: &str = r"tornado-eth-0.1-5-0x4805479a68a261e0850509d4a0724877c9395be42d78146b05880d7fd4b9484e92c8de0dfc2df89aae1a7d87726da32eed131fde50bff26a0392ce2b6729";
+    // https://goerli.etherscan.io/tx/0x06e10a9ea49183e9127fb7581d4d54750290c1ecc7c7f1707953f706fe9ab959
+    const NOTE: &str = r"tornado-eth-0.1-5-0xebcf5edb762e52e6eb0f33818c647cdceb75d1cd6609847ec56b750445de0b659a11796781c60aaf3ba5d693b360a77d5cff360c982ed9dc2fd419b858d3";
     const NULLIFIER_HASH: &str =
-        "18941337381714858446355925653430800737045061541595044917820195410400865861385";
+        "20454790225299856478795038962746880644063954504776542630455482831220240995363";
     const COMMITMENT_HASH: &str =
-        "525964881243906792375230974931225736378364691955935045809786306735191636140";
+        "18716593830613547391848516730128799739861563597347942888893803512076728965848";
 
     #[wasm_bindgen_test]
     async fn test_parse_note() {
-        let note = parse_note(NOTE).await.unwrap();
+        let tornado = Tornado::new(vec![NOTE]).await.unwrap();
         assert_eq!(
-            note,
+            tornado.note_list[0],
             Note {
                 currency: "eth".into(),
                 amount: "0.1".into(),
@@ -81,6 +90,6 @@ mod tests {
                 nullifier_hash: JsValue::bigint_from_str(NULLIFIER_HASH).into(),
                 commitment_hash: JsValue::bigint_from_str(COMMITMENT_HASH).into(),
             }
-        )
+        );
     }
 }

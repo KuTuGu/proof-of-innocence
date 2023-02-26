@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node -r esbuild-register -- src/utils/tornado.js",
-    "build": "esbuild src/utils/tornado.js --bundle --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js"
+    "test": "node -r esbuild-register -- src/utils/tornado/index.js",
+    "build": "esbuild src/utils/tornado/index.js --bundle --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js"
   },
   "author": "",
   "license": "ISC",

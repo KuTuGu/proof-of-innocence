@@ -191,6 +191,8 @@ dependencies = [
  "hex",
  "js-sys",
  "regex",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
