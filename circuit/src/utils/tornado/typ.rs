@@ -15,18 +15,69 @@ extern "C" {
 
     #[wasm_bindgen(method)]
     pub fn pedersen_hash(this: &TornadoUtil, data: Uint8Array) -> BigInt;
+
+    #[wasm_bindgen(method, catch)]
+    pub async fn read_file(this: &TornadoUtil, path: JsValue) -> Result<JsValue, JsValue>;
 }
 
 // tornado note parse rule
 pub const NOTE_REGEX: &str =
     r"^tornado-(?P<currency>\w+)-(?P<amount>[\d.]+)-(?P<netId>\d+)-0x(?P<note>[0-9a-fA-F]{124})$";
 // tornado event log cache file path, only cache data used for convenience
-pub const LOG_PATH: &str = r"../../../tornado_cli/cache";
+// env::var("EVENT_LOG_DIR")?
+pub const EVENT_LOG_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tornado_cli/cache");
 // tornado contract related information
 pub const CONFIG: &str = include_str!("./config.json");
 
 pub type NetIdConfigMap = HashMap<String, NetIdConfig>;
+pub type EventLogList = Vec<EventLog>;
 pub type Address = String;
+pub type Hash = String;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EventLogType {
+    #[serde(rename = "deposits")]
+    Deposit,
+    #[serde(rename = "withdrawals")]
+    Withdrawal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EventLog {
+    Deposit(DepositLog),
+    Withdraw(WithdrawLog),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepositLog {
+    #[serde(default)]
+    pub block_number: u32,
+    #[serde(default)]
+    pub transaction_hash: Hash,
+    #[serde(default)]
+    pub commitment: Hash,
+    #[serde(default)]
+    pub leaf_index: u32,
+    #[serde(default)]
+    pub timestamp: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawLog {
+    #[serde(default)]
+    pub block_number: u32,
+    #[serde(default)]
+    pub transaction_hash: Hash,
+    #[serde(default)]
+    pub nullifier_hash: Hash,
+    #[serde(default)]
+    pub to: Address,
+    #[serde(default)]
+    pub fee: String,
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +92,7 @@ pub struct NetIdConfig {
     pub matic: Option<TokenData>,
     pub bnb: Option<TokenData>,
     pub avax: Option<TokenData>,
+    pub name: String,
     pub proxy: Option<Address>,
     pub multicall: Option<Address>,
     pub subgraph: Option<String>,

@@ -188,6 +188,7 @@ name = "circuit"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures",
  "hex",
  "js-sys",
  "regex",

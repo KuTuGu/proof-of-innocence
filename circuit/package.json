@@ -10,7 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "circomlibjs": "^0.1.7"
+    "circomlibjs": "^0.1.7",
+    "fs-extra": "^11.1.0"
   },
   "devDependencies": {
     "esbuild": "^0.17.10",
