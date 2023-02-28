@@ -6,7 +6,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use hex::FromHex;
 use js_sys::{BigInt, Uint8Array};
 use regex::Regex;
-use std::env;
+use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 use web_sys::console;
 
@@ -19,18 +19,17 @@ pub struct Note {
     nullifier_hash: BigInt,
     commitment_hash: BigInt,
     event_log_type: Option<EventLogType>,
-    event_log_list: EventLogList,
+    event_log_list: Vec<EventLog>,
 }
 
 impl Note {
     pub async fn read_event_log(mut self, tor: &Tornado) -> Result<Self> {
-        let net_id = self.net_id;
-        let key = format!("netId{}", net_id);
-        let config = tor
-            .config
-            .get(&key)
-            .ok_or(anyhow!("net_id `{net_id}` not support"))?;
-        let base_dir = &format!("{}/{}", EVENT_LOG_PATH, config.name);
+        let net_id = format!("netId{}", self.net_id);
+        let net_name = tor
+            .net_name_map
+            .get(&net_id)
+            .ok_or(anyhow!("`{net_id}` not support"))?;
+        let base_dir = &format!("{}/{}", EVENT_LOG_PATH, net_name);
 
         match self.event_log_type {
             Some(typ @ (EventLogType::Deposit | EventLogType::Withdrawal)) => {
@@ -41,11 +40,11 @@ impl Note {
                 let content = self
                     ._read_file(tor, base_dir, EventLogType::Deposit)
                     .await?;
-                let deposit_list: EventLogList = serde_json::from_str(&content)?;
+                let deposit_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 let content = self
                     ._read_file(tor, base_dir, EventLogType::Withdrawal)
                     .await?;
-                let withdraw_list: EventLogList = serde_json::from_str(&content)?;
+                let withdraw_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 self.event_log_list = [deposit_list, withdraw_list].concat();
             }
         }
@@ -83,7 +82,7 @@ impl Note {
 
 pub struct Tornado {
     note_list: Vec<Note>,
-    config: NetIdConfigMap,
+    net_name_map: HashMap<String, String>,
     util: TornadoUtil,
 }
 
@@ -91,7 +90,10 @@ impl Default for Tornado {
     fn default() -> Self {
         Self {
             note_list: vec![],
-            config: serde_json::from_str(CONFIG).unwrap(),
+            net_name_map: NET_NAME_MAPPING
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
             util: TornadoUtil::new(),
         }
     }
