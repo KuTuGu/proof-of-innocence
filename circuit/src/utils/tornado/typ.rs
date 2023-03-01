@@ -25,17 +25,6 @@ pub const NOTE_REGEX: &str =
 // tornado event log cache file path, only cache data used for convenience
 // env::var("EVENT_LOG_DIR")?
 pub const EVENT_LOG_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tornado_cli/cache");
-// net id -> cache dir name
-pub const NET_NAME_MAPPING: [(&str, &str); 8] = [
-    ("netId1", "ethereum"),
-    ("netId5", "goerli"),
-    ("netId56", "binancesmartchain"),
-    ("netId100", "gnosischain"),
-    ("netId137", "polygon"),
-    ("netId42161", "arbitrum"),
-    ("netId43114", "avalanche"),
-    ("netId10", "optimism"),
-];
 
 pub type Address = String;
 pub type Hash = String;
@@ -61,13 +50,13 @@ pub struct DepositLog {
     #[serde(default)]
     pub block_number: u32,
     #[serde(default)]
+    pub leaf_index: u32,
+    #[serde(default)]
     pub transaction_hash: Hash,
     #[serde(default)]
     pub commitment: Hash,
     #[serde(default)]
-    pub leaf_index: u32,
-    #[serde(default)]
-    pub timestamp: u32,
+    pub timestamp: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
