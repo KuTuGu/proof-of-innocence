@@ -1,4 +1,4 @@
-use super::{net::NET_INFO_MAP, typ::*};
+use super::{merkle::TornadoMerkleTree, net::NET_INFO_MAP, typ::*};
 use anyhow::{anyhow, Result};
 use hex::FromHex;
 use js_sys::Uint8Array;
@@ -27,8 +27,8 @@ impl Note {
         let note = <[u8; 62]>::from_hex(caps.name("note").unwrap().as_str())?;
         let preimage = Uint8Array::from(&note[..]);
         let nullifier = Uint8Array::from(&note[..31]);
-        let commitment_hash = _hash_data(preimage, util)?;
-        let nullifier_hash = _hash_data(nullifier, util)?;
+        let commitment_hash = hash_data(preimage, util)?;
+        let nullifier_hash = hash_data(nullifier, util)?;
 
         Ok(Self {
             currency,
@@ -56,15 +56,15 @@ impl Note {
 
         match typ {
             Some(typ @ (EventLogType::Deposit | EventLogType::Withdrawal)) => {
-                let content = self._read_file(util, base_dir, typ).await?;
+                let content = self.read_file(util, base_dir, typ).await?;
                 Ok(serde_json::from_str(&content)?)
             }
             _ => {
                 let content = self
-                    ._read_file(util, base_dir, EventLogType::Deposit)
+                    .read_file(util, base_dir, EventLogType::Deposit)
                     .await?;
                 let content = self
-                    ._read_file(util, base_dir, EventLogType::Withdrawal)
+                    .read_file(util, base_dir, EventLogType::Withdrawal)
                     .await?;
                 let deposit_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 let withdraw_list: Vec<EventLog> = serde_json::from_str(&content)?;
@@ -73,7 +73,23 @@ impl Note {
         }
     }
 
-    async fn _read_file(
+    pub fn generate_merkle_tree(&self, log_list: Vec<DepositLog>) -> TornadoMerkleTree {
+        let mut leafIndex = None;
+        let leaves = log_list
+            .into_iter()
+            .map(|log| {
+                let commitment = log.commitment.trim_start_matches("0x").into();
+                if commitment == self.commitment_hash {
+                    leafIndex = Some(log.leaf_index);
+                }
+                commitment
+            })
+            .collect::<Vec<String>>();
+
+        TornadoMerkleTree::new(leaves)
+    }
+
+    async fn read_file(
         &self,
         util: &TornadoUtil,
         base_dir: &str,
@@ -105,7 +121,7 @@ impl Note {
     }
 }
 
-fn _hash_data(data: Uint8Array, util: &TornadoUtil) -> Result<String> {
+fn hash_data(data: Uint8Array, util: &TornadoUtil) -> Result<String> {
     Ok(format!(
         "{:0>64}",
         util.pedersen_hash(data)
