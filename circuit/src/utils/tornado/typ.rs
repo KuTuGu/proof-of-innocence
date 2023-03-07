@@ -1,5 +1,7 @@
 use js_sys::{BigInt, Uint8Array};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/output/tornado_bundle.js")]
@@ -25,6 +27,21 @@ pub const NOTE_REGEX: &str =
 // tornado event log cache file path, only cache data used for convenience
 // env::var("EVENT_LOG_DIR")?
 pub const EVENT_LOG_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tornado_cli/cache");
+
+lazy_static! {
+    pub static ref NET_NAME_MAP: HashMap<u32, &'static str> = {
+        let mut map = HashMap::new();
+        map.insert(1, "ethereum");
+        map.insert(5, "goerli");
+        map.insert(56, "binancesmartchain");
+        map.insert(100, "gnosischain");
+        map.insert(137, "polygon");
+        map.insert(42161, "arbitrum");
+        map.insert(43114, "avalanche");
+        map.insert(10, "optimism");
+        map
+    };
+}
 
 pub type Address = String;
 pub type Hash = String;

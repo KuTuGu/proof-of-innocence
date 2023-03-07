@@ -1,5 +1,4 @@
 mod merkle;
-mod net;
 mod note;
 mod typ;
 

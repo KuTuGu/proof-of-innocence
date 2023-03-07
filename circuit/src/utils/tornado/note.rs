@@ -1,4 +1,4 @@
-use super::{merkle::TornadoMerkleTree, net::NET_INFO_MAP, typ::*};
+use super::{merkle::TornadoMerkleTree, typ::*};
 use anyhow::{anyhow, Result};
 use hex::FromHex;
 use js_sys::Uint8Array;
@@ -49,10 +49,9 @@ impl Note {
         let base_dir = &format!(
             "{}/{}",
             EVENT_LOG_PATH,
-            NET_INFO_MAP
+            NET_NAME_MAP
                 .get(&net_id)
                 .ok_or(anyhow!("Net#{net_id} not support"))?
-                .name
         );
 
         match typ {
