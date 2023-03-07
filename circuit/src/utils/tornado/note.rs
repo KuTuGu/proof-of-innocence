@@ -2,6 +2,7 @@ use super::{merkle::TornadoMerkleTree, net::NET_INFO_MAP, typ::*};
 use anyhow::{anyhow, Result};
 use hex::FromHex;
 use js_sys::Uint8Array;
+use merkle_light::proof::Proof;
 use regex::Regex;
 use wasm_bindgen::JsValue;
 
@@ -73,20 +74,41 @@ impl Note {
         }
     }
 
-    pub fn generate_merkle_tree(&self, log_list: Vec<DepositLog>) -> TornadoMerkleTree {
+    pub async fn generate_deposit_proof(
+        &self,
+        util: &TornadoUtil,
+    ) -> Result<([u8; 32], Proof<[u8; 32]>)> {
         let mut leafIndex = None;
+        let log_list = self
+            .read_event_log(Some(EventLogType::Deposit), util)
+            .await?;
         let leaves = log_list
             .into_iter()
-            .map(|log| {
-                let commitment = log.commitment.trim_start_matches("0x").into();
-                if commitment == self.commitment_hash {
-                    leafIndex = Some(log.leaf_index);
+            .map(|log| match log {
+                EventLog::Deposit(log) => {
+                    let commitment = log.commitment.trim_start_matches("0x").into();
+                    if commitment == self.commitment_hash {
+                        leafIndex = Some(log.leaf_index);
+                    }
+                    commitment
                 }
-                commitment
+                _ => unreachable!(),
             })
             .collect::<Vec<String>>();
 
-        TornadoMerkleTree::new(leaves)
+        match leafIndex {
+            Some(i) => {
+                let t = TornadoMerkleTree::new(leaves);
+                Ok((t.root(), t.gen_proof(i)))
+            }
+            None => Err(anyhow!(
+                "Deposit log not exist in history, please check the cache file."
+            )),
+        }
+    }
+
+    pub fn commitment(&self) -> &Hash {
+        &self.commitment_hash
     }
 
     async fn read_file(
@@ -132,11 +154,8 @@ fn hash_data(data: Uint8Array, util: &TornadoUtil) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::tornado::Tornado;
-
     use super::*;
-    use num_bigint::BigUint;
-    use std::str::FromStr;
+    use crate::utils::tornado::Tornado;
     use wasm_bindgen_test::*;
 
     const NET_ID: u32 = 5;
@@ -145,21 +164,20 @@ mod tests {
 
     // https://goerli.etherscan.io/tx/0x06e10a9ea49183e9127fb7581d4d54750290c1ecc7c7f1707953f706fe9ab959
     const NOTE: &str = r"tornado-eth-0.1-5-0xebcf5edb762e52e6eb0f33818c647cdceb75d1cd6609847ec56b750445de0b659a11796781c60aaf3ba5d693b360a77d5cff360c982ed9dc2fd419b858d3";
-    const NULLIFIER_HASH: &str =
-        "20454790225299856478795038962746880644063954504776542630455482831220240995363";
+    const NULLIFIER_HASH: &str = "2d39004125a3df2cbb59ad3aa3dee045fac6f176376343632be7b9cc476ad423";
     const COMMITMENT_HASH: &str =
-        "18716593830613547391848516730128799739861563597347942888893803512076728965848";
+        "296137799075f986ce4c0bbbfdade2b96689d7720d2e8b59a84bf48f4afe9ad8";
 
     // https://goerli.etherscan.io/tx/0x7b5ee6c14b86509c2b401ee1ec15657f303494acfe5d786cc4081a6666f34414
     const COST_NOTE: &str = r"tornado-eth-0.1-5-0x4805479a68a261e0850509d4a0724877c9395be42d78146b05880d7fd4b9484e92c8de0dfc2df89aae1a7d87726da32eed131fde50bff26a0392ce2b6729";
     const COST_NULLIFIER_HASH: &str =
-        "18941337381714858446355925653430800737045061541595044917820195410400865861385";
+        "29e06ac32f5db0048ed954c971413c676bdf65bc318ee72bc52ce6162c76bf09";
     const COST_COMMITMENT_HASH: &str =
-        "525964881243906792375230974931225736378364691955935045809786306735191636140";
+        "0129af81b9bdf54d834cdef1c6aab21c5ff95e4c40f10bc3a013bd929fbc38ac";
 
     #[wasm_bindgen_test]
     async fn test_parse_note() {
-        let tornado = Tornado::new(vec![]).await.unwrap();
+        let tornado = Tornado::new(vec![], vec![]).await.unwrap();
         let note = Note::new(NOTE, &tornado.util).unwrap();
         let cost_note = Note::new(COST_NOTE, &tornado.util).unwrap();
 
@@ -169,14 +187,8 @@ mod tests {
                 currency: CURRENCY.into(),
                 amount: AMOUNT.into(),
                 net_id: NET_ID,
-                nullifier_hash: format!(
-                    "{:0>64}",
-                    BigUint::from_str(NULLIFIER_HASH).unwrap().to_str_radix(16)
-                ),
-                commitment_hash: format!(
-                    "{:0>64}",
-                    BigUint::from_str(COMMITMENT_HASH).unwrap().to_str_radix(16)
-                ),
+                nullifier_hash: NULLIFIER_HASH.into(),
+                commitment_hash: COMMITMENT_HASH.into(),
             }
         );
         assert_eq!(
@@ -185,25 +197,15 @@ mod tests {
                 currency: CURRENCY.into(),
                 amount: AMOUNT.into(),
                 net_id: NET_ID,
-                nullifier_hash: format!(
-                    "{:0>64}",
-                    BigUint::from_str(COST_NULLIFIER_HASH)
-                        .unwrap()
-                        .to_str_radix(16)
-                ),
-                commitment_hash: format!(
-                    "{:0>64}",
-                    BigUint::from_str(COST_COMMITMENT_HASH)
-                        .unwrap()
-                        .to_str_radix(16)
-                ),
+                nullifier_hash: COST_NULLIFIER_HASH.into(),
+                commitment_hash: COST_COMMITMENT_HASH.into(),
             }
         );
     }
 
     #[wasm_bindgen_test]
     async fn test_read_event_log() {
-        let tornado = Tornado::new(vec![]).await.unwrap();
+        let tornado = Tornado::new(vec![], vec![]).await.unwrap();
         Note::new(NOTE, &tornado.util)
             .unwrap()
             .read_event_log(Some(EventLogType::Deposit), &tornado.util)

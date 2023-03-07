@@ -2,6 +2,7 @@ use ff::*;
 use merkle_light::hash::Algorithm;
 use merkle_light::merkle::MerkleTree;
 use mimc_sponge_rs::{Fr, MimcSponge};
+use novasmt::{Database, FullProof, InMemoryCas, Tree};
 use num_bigint::BigUint;
 use num_traits::Num;
 use regex::Regex;
@@ -31,6 +32,35 @@ impl TornadoMerkleTree {
                 .fixed_level(LEVEL, raw_data(ZERO_ELEMENT))
                 .build(),
         )
+    }
+}
+
+pub struct SparseMerkleTree(Tree<InMemoryCas>);
+
+impl Deref for SparseMerkleTree {
+    type Target = Tree<InMemoryCas>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl SparseMerkleTree {
+    pub fn new(list: Vec<String>) -> Self {
+        let forest = Database::new(InMemoryCas::default());
+        let mut tree = forest.get_tree([0; 32]).unwrap();
+
+        for item in list {
+            tree.insert(raw_data(&item), &raw_data("1"));
+        }
+        assert!(tree.root_hash() != [0; 32], "Empty Sparse Merkle Tree");
+
+        Self(tree)
+    }
+
+    pub fn generate_proof(&self, key: &str) -> ([u8; 32], FullProof) {
+        let key = raw_data(key);
+        let (_val, proof) = self.get_with_proof(key);
+        (key, proof)
     }
 }
 
@@ -95,15 +125,31 @@ fn fr(data: &[u8]) -> Fr {
     Fr::from_str(&BigUint::from_bytes_be(data).to_str_radix(10)).unwrap()
 }
 fn raw_data(str: &str) -> [u8; 32] {
-    let mut data = BigUint::from_str_radix(str, 16).unwrap().to_bytes_le();
-    data.resize(32, 0);
-    data.reverse();
-    data.try_into().unwrap()
+    to32(
+        BigUint::from_str_radix(str, 16)
+            .unwrap()
+            .to_bytes_be()
+            .as_ref(),
+    )
+}
+fn to32(data: &[u8]) -> [u8; 32] {
+    let len = data.len();
+    if len == 32 {
+        data.try_into().unwrap()
+    } else if len < 32 {
+        [&vec![0; 32 - data.len()][..], &data[..]]
+            .concat()
+            .try_into()
+            .unwrap()
+    } else {
+        unreachable!()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use merkle_light::proof::Proof;
     use wasm_bindgen_test::*;
 
     const LEAF: &str = "09ee41e2a667251b7bedc2032977ab5ce9d2b2b79e158e252c13025820804dc1";
@@ -116,5 +162,13 @@ mod tests {
             BigUint::from_bytes_be(t.root().as_ref()).to_str_radix(16),
             ROOT
         );
+
+        let proof = t.gen_proof(0);
+        assert!(proof.validate::<MimcHasher>());
+
+        let mut fake_path = proof.path().to_vec();
+        fake_path[0] = !fake_path[0];
+        let fake_proof = Proof::new(proof.lemma().to_vec(), fake_path);
+        assert!(fake_proof.validate::<MimcHasher>() == false);
     }
 }

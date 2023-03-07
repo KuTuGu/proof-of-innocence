@@ -29,6 +29,16 @@ pub const EVENT_LOG_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tornado_c
 pub type Address = String;
 pub type Hash = String;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Proof {
+    pub commitment: [u8; 32],
+    pub commitment_tree_root: [u8; 32],
+    pub block_tree_root: [u8; 32],
+    pub accuracy_proof_element: Vec<[u8; 32]>,
+    pub accuracy_proof_index: Vec<bool>,
+    pub non_existence_proof: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventLogType {
     #[serde(rename = "deposits")]
@@ -50,7 +60,7 @@ pub struct DepositLog {
     #[serde(default)]
     pub block_number: u32,
     #[serde(default)]
-    pub leaf_index: u32,
+    pub leaf_index: usize,
     #[serde(default)]
     pub transaction_hash: Hash,
     #[serde(default)]
