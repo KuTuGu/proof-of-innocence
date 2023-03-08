@@ -1,11 +1,13 @@
 // TODO: Update the name of the method loaded by the prover. E.g., if the method is `multiply`, replace `METHOD_NAME_ID` with `MULTIPLY_ID` and replace `METHOD_NAME_PATH` with `MULTIPLY_PATH`
+use circuit::Proof;
 use methods::{METHOD_NAME_ELF, METHOD_NAME_ID};
-use risc0_zkvm::serde::{from_slice, to_vec};
+use risc0_zkvm::serde::to_vec;
 use risc0_zkvm::Prover;
 
+const PROOF: &str = include_str!("../../../circuit/output/proof.json");
+
 fn main() {
-    let source_list = vec![String::from("0x0000000000000000000000000000000000000000")];
-    let block_list = vec![String::from("0x0000000000000000000000000000000000000001")];
+    let proof: Vec<Proof> = serde_json::from_str(PROOF).unwrap();
 
     // Make the prover.
     let mut prover = Prover::new(METHOD_NAME_ELF, METHOD_NAME_ID).expect(
@@ -13,9 +15,7 @@ fn main() {
     );
 
     // TODO: Implement communication with the guest here
-    // let source_list = to_vec(&source_list).unwrap();
-    prover.add_input_u32_slice(&to_vec(&source_list).unwrap());
-    prover.add_input_u32_slice(&to_vec(&block_list).unwrap());
+    prover.add_input_u32_slice(&to_vec(&proof).unwrap());
 
     // Run prover & generate receipt
     let receipt = prover.run()

@@ -2,7 +2,7 @@ mod merkle;
 mod note;
 mod typ;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 pub use merkle::*;
@@ -32,23 +32,23 @@ impl Tornado {
         s.parse_note(note_list)
     }
 
-    pub async fn generate_proof(self) -> Vec<Proof> {
+    pub async fn generate_proof(self) -> Result<Vec<Proof>> {
         let util = &self.util;
         let t = &SparseMerkleTree::new(self.block_list);
         let task_list = FuturesUnordered::new();
 
         for note in &self.note_list {
             task_list.push(async move {
-                let (key, proof) = t.generate_proof(&note.commitment());
+                let (commitment, innocence_proof) = t.generate_proof(&note.commitment());
                 let (accuracy_root, accuracy_proof) = note.generate_deposit_proof(&util).await?;
 
                 Ok(Proof {
-                    commitment: key,
+                    commitment,
                     commitment_tree_root: accuracy_root,
                     block_tree_root: t.root_hash(),
                     accuracy_proof_element: accuracy_proof.lemma().to_vec(),
                     accuracy_proof_index: accuracy_proof.path().to_vec(),
-                    non_existence_proof: proof.compress().0,
+                    innocence_proof,
                 })
             });
         }
@@ -57,23 +57,17 @@ impl Tornado {
             .collect::<Vec<Result<Proof>>>()
             .await
             .into_iter()
-            .flatten()
-            .collect::<Vec<Proof>>();
+            .map(|r| r.map_err(|err| anyhow!("Failed to generate a proof for some Notes.\n{err}")))
+            .collect::<Result<Vec<Proof>, _>>()?;
 
-        assert_eq!(
-            proof_list.len(),
-            self.note_list.len(),
-            "Failed to generate a proof for some Notes"
-        );
-
-        proof_list
+        Ok(proof_list)
     }
 
     fn parse_note(mut self, list: Vec<String>) -> Result<Self> {
         self.note_list = list
             .iter()
-            .map(|note| Note::new(note, &self.util).unwrap())
-            .collect();
+            .map(|note| Note::new(note, &self.util))
+            .collect::<Result<Vec<Note>>>()?;
 
         Ok(self)
     }

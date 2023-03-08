@@ -2,7 +2,7 @@ use ff::*;
 use merkle_light::hash::Algorithm;
 use merkle_light::merkle::MerkleTree;
 use mimc_sponge_rs::{Fr, MimcSponge};
-use novasmt::{Database, FullProof, InMemoryCas, Tree};
+use novasmt::{Database, InMemoryCas, Tree};
 use num_bigint::BigUint;
 use num_traits::Num;
 use regex::Regex;
@@ -57,10 +57,10 @@ impl SparseMerkleTree {
         Self(tree)
     }
 
-    pub fn generate_proof(&self, key: &str) -> ([u8; 32], FullProof) {
+    pub fn generate_proof(&self, key: &str) -> ([u8; 32], Vec<u8>) {
         let key = raw_data(key);
         let (_val, proof) = self.get_with_proof(key);
-        (key, proof)
+        (key, proof.compress().0)
     }
 }
 

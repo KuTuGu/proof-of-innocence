@@ -20,7 +20,7 @@ impl Note {
         let re = Regex::new(NOTE_REGEX)?;
         let caps = re
             .captures(note)
-            .ok_or(anyhow!("Tornado note format is incorrect"))?;
+            .ok_or(anyhow!("Tornado note `{note}` format is incorrect"))?;
 
         let currency = caps.name("currency").unwrap().as_str().into();
         let amount = caps.name("amount").unwrap().as_str().into();
@@ -63,10 +63,10 @@ impl Note {
                 let content = self
                     .read_file(util, base_dir, EventLogType::Deposit)
                     .await?;
+                let deposit_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 let content = self
                     .read_file(util, base_dir, EventLogType::Withdrawal)
                     .await?;
-                let deposit_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 let withdraw_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 Ok([deposit_list, withdraw_list].concat())
             }
@@ -77,7 +77,7 @@ impl Note {
         &self,
         util: &TornadoUtil,
     ) -> Result<([u8; 32], Proof<[u8; 32]>)> {
-        let mut leafIndex = None;
+        let mut leaf_index = None;
         let log_list = self
             .read_event_log(Some(EventLogType::Deposit), util)
             .await?;
@@ -87,7 +87,7 @@ impl Note {
                 EventLog::Deposit(log) => {
                     let commitment = log.commitment.trim_start_matches("0x").into();
                     if commitment == self.commitment_hash {
-                        leafIndex = Some(log.leaf_index);
+                        leaf_index = Some(log.leaf_index);
                     }
                     commitment
                 }
@@ -95,7 +95,7 @@ impl Note {
             })
             .collect::<Vec<String>>();
 
-        match leafIndex {
+        match leaf_index {
             Some(i) => {
                 let t = TornadoMerkleTree::new(leaves);
                 Ok((t.root(), t.gen_proof(i)))

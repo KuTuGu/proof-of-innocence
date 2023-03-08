@@ -4,13 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node -r esbuild-register -- src/utils/tornado/index.js",
-    "build": "esbuild src/utils/tornado/index.js --bundle --minify --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js"
+    "test": "node -r esbuild-register -- ./js/util.mjs",
+    "build:js": "esbuild ./js/util.mjs --bundle --minify --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js",
+    "build:rs": "wasm-pack build -t nodejs",
+    "build": "npm run build:js && npm run build:rs",
+    "start": "node ./js/index.js -h",
+    "prove": "node ./js/index.js prove"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "circomlibjs": "^0.1.7",
+    "commander": "^10.0.0",
     "fs-extra": "^11.1.0"
   },
   "devDependencies": {

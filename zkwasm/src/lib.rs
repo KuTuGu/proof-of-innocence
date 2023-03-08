@@ -1,4 +1,3 @@
-use circuit::circuit;
 use wasm_bindgen::prelude::*;
 
 extern "C" {

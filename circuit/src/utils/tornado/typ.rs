@@ -53,7 +53,7 @@ pub struct Proof {
     pub block_tree_root: [u8; 32],
     pub accuracy_proof_element: Vec<[u8; 32]>,
     pub accuracy_proof_index: Vec<bool>,
-    pub non_existence_proof: Vec<u8>,
+    pub innocence_proof: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
