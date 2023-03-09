@@ -280,7 +280,6 @@ dependencies = [
  "anyhow",
  "ff_ce",
  "futures",
- "hex",
  "js-sys",
  "lazy_static",
  "merkle_light",

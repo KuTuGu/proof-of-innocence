@@ -10,7 +10,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 anyhow = "1.0.69"
 futures = "0.3.26"
-hex = "0.4.3"
 js-sys = "0.3.61"
 lazy_static = "1.4.0"
 serde = { version = "1.0.152", default-features = false, features = ["derive"] }

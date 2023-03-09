@@ -59,7 +59,7 @@ impl Tornado {
             .collect::<Vec<Result<Proof>>>()
             .await
             .into_iter()
-            .map(|r| r.map_err(|err| anyhow!("Failed to generate a proof for some Notes.\n{err}")))
+            .map(|r| r.map_err(|err| anyhow!("Failed to generate a proof for some Notes.{err}")))
             .collect::<Result<Vec<Proof>, _>>()?;
 
         Ok(proof_list)

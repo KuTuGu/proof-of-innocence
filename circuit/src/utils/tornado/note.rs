@@ -1,7 +1,8 @@
 use super::{merkle::TornadoMerkleTree, typ::*};
 use anyhow::{anyhow, Result};
-use hex::FromHex;
 use js_sys::Uint8Array;
+use num_bigint::BigUint;
+use num_traits::Num;
 use regex::Regex;
 use wasm_bindgen::JsValue;
 
@@ -24,7 +25,9 @@ impl Note {
         let currency = caps.name("currency").unwrap().as_str().into();
         let amount = caps.name("amount").unwrap().as_str().into();
         let net_id = caps.name("netId").unwrap().as_str().parse()?;
-        let note = <[u8; 62]>::from_hex(caps.name("note").unwrap().as_str())?;
+        let note = BigUint::from_str_radix(caps.name("note").unwrap().as_str(), 16)
+            .unwrap()
+            .to_bytes_be();
         let preimage = Uint8Array::from(&note[..]);
         let nullifier = Uint8Array::from(&note[..31]);
         let commitment_hash = hash_data(preimage, util)?;
@@ -126,9 +129,7 @@ impl Note {
             util.read_file(JsValue::from_str(&path))
                 .await
                 .map_err(|err| {
-                    anyhow!(
-                        "Failed to read cache file, ensure that the file `{path}` exit.\n{err:?}"
-                    )
+                    anyhow!("Failed to read cache file, ensure that the file `{path}` exit.{err:?}")
                 })?,
         )
         .to_string()
