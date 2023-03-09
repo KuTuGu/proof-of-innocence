@@ -44,14 +44,15 @@ lazy_static! {
 }
 
 pub type Address = String;
-pub type Hash = String;
+pub type HashStr = String;
+pub type Hash = [u8; 32];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof {
-    pub commitment: [u8; 32],
-    pub commitment_tree_root: [u8; 32],
-    pub block_tree_root: [u8; 32],
-    pub accuracy_proof_element: Vec<[u8; 32]>,
+    pub commitment: Hash,
+    pub accuracy_tree_root: Hash,
+    pub innocence_tree_root: Hash,
+    pub accuracy_proof_element: Vec<Hash>,
     pub accuracy_proof_index: Vec<bool>,
     pub innocence_proof: Vec<u8>,
 }
@@ -79,9 +80,9 @@ pub struct DepositLog {
     #[serde(default)]
     pub leaf_index: usize,
     #[serde(default)]
-    pub transaction_hash: Hash,
+    pub transaction_hash: HashStr,
     #[serde(default)]
-    pub commitment: Hash,
+    pub commitment: HashStr,
     #[serde(default)]
     pub timestamp: String,
 }
@@ -92,9 +93,9 @@ pub struct WithdrawLog {
     #[serde(default)]
     pub block_number: u32,
     #[serde(default)]
-    pub transaction_hash: Hash,
+    pub transaction_hash: HashStr,
     #[serde(default)]
-    pub nullifier_hash: Hash,
+    pub nullifier_hash: HashStr,
     #[serde(default)]
     pub to: Address,
     #[serde(default)]

@@ -2,7 +2,6 @@ use super::{merkle::TornadoMerkleTree, typ::*};
 use anyhow::{anyhow, Result};
 use hex::FromHex;
 use js_sys::Uint8Array;
-use merkle_light::proof::Proof;
 use regex::Regex;
 use wasm_bindgen::JsValue;
 
@@ -11,8 +10,8 @@ pub struct Note {
     currency: String,
     amount: String,
     net_id: u32,
-    nullifier_hash: Hash,
-    commitment_hash: Hash,
+    nullifier_hash: HashStr,
+    commitment_hash: HashStr,
 }
 
 impl Note {
@@ -73,10 +72,7 @@ impl Note {
         }
     }
 
-    pub async fn generate_deposit_proof(
-        &self,
-        util: &TornadoUtil,
-    ) -> Result<([u8; 32], Proof<[u8; 32]>)> {
+    pub async fn prove(&self, util: &TornadoUtil) -> Result<(Hash, Vec<Hash>, Vec<bool>)> {
         let mut leaf_index = None;
         let log_list = self
             .read_event_log(Some(EventLogType::Deposit), util)
@@ -98,7 +94,8 @@ impl Note {
         match leaf_index {
             Some(i) => {
                 let t = TornadoMerkleTree::new(leaves);
-                Ok((t.root(), t.gen_proof(i)))
+                let (element, index) = t.prove(i);
+                Ok((t.root(), element, index))
             }
             None => Err(anyhow!(
                 "Deposit log not exist in history, please check the cache file."
@@ -106,7 +103,7 @@ impl Note {
         }
     }
 
-    pub fn commitment(&self) -> &Hash {
+    pub fn commitment(&self) -> &HashStr {
         &self.commitment_hash
     }
 

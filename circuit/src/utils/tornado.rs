@@ -11,7 +11,7 @@ pub use typ::*;
 
 pub struct Tornado {
     note_list: Vec<Note>,
-    block_list: Vec<Hash>,
+    block_list: Vec<HashStr>,
     util: TornadoUtil,
 }
 
@@ -32,22 +32,24 @@ impl Tornado {
         s.parse_note(note_list)
     }
 
-    pub async fn generate_proof(self) -> Result<Vec<Proof>> {
+    pub async fn prove(self) -> Result<Vec<Proof>> {
         let util = &self.util;
         let t = &SparseMerkleTree::new(self.block_list);
         let task_list = FuturesUnordered::new();
 
         for note in &self.note_list {
             task_list.push(async move {
-                let (commitment, innocence_proof) = t.generate_proof(&note.commitment());
-                let (accuracy_root, accuracy_proof) = note.generate_deposit_proof(&util).await?;
+                let commitment = to_hash(note.commitment());
+                let innocence_proof = t.prove(commitment);
+                let (accuracy_root, accuracy_proof_element, accuracy_proof_index) =
+                    note.prove(&util).await?;
 
                 Ok(Proof {
                     commitment,
-                    commitment_tree_root: accuracy_root,
-                    block_tree_root: t.root_hash(),
-                    accuracy_proof_element: accuracy_proof.lemma().to_vec(),
-                    accuracy_proof_index: accuracy_proof.path().to_vec(),
+                    accuracy_tree_root: accuracy_root,
+                    innocence_tree_root: t.root(),
+                    accuracy_proof_element,
+                    accuracy_proof_index,
                     innocence_proof,
                 })
             });

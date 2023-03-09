@@ -1,10 +1,8 @@
 mod utils;
 
 use anyhow::Result;
-use merkle_light::proof::Proof as AccuracyProof;
-use novasmt::CompressedProof;
 pub use utils::tornado::Proof;
-use utils::tornado::{MimcHasher, Tornado};
+use utils::tornado::{SparseMerkleTree, Tornado, TornadoMerkleTree};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen]
@@ -29,7 +27,7 @@ pub async fn prove(note_list: Vec<JsValue>, block_list: Vec<JsValue>) -> Result<
         .await
         .map_err(|err| JsValue::from_str(&err.to_string()))?;
     let proof = tornado
-        .generate_proof()
+        .prove()
         .await
         .map_err(|err| JsValue::from_str(&err.to_string()))?;
     let proof_str = serde_json::to_string(&proof).unwrap();
@@ -47,16 +45,17 @@ pub fn verify(proof_list: Vec<Proof>) -> bool {
     let mut res = true;
 
     for proof in proof_list {
-        let accuracy_proof =
-            AccuracyProof::new(proof.accuracy_proof_element, proof.accuracy_proof_index);
-        let element = accuracy_proof.lemma();
-        let innocence_proof = CompressedProof(proof.innocence_proof).decompress().unwrap();
-
-        res = res
-            && element[0] == proof.commitment
-            && element[element.len() - 1] == proof.commitment_tree_root
-            && accuracy_proof.validate::<MimcHasher>()
-            && innocence_proof.verify(proof.block_tree_root, proof.commitment, &[]);
+        res =
+            res && TornadoMerkleTree::verify(
+                proof.accuracy_tree_root,
+                proof.commitment,
+                proof.accuracy_proof_element,
+                proof.accuracy_proof_index,
+            ) && SparseMerkleTree::verify(
+                proof.innocence_tree_root,
+                proof.commitment,
+                proof.innocence_proof,
+            );
     }
 
     res
@@ -78,12 +77,12 @@ mod tests {
             serde_json::from_str(
                 &prove(
                     vec![JsValue::from_str(NOTE)],
-                    vec![JsValue::from_str(OTHER_HASH)]
+                    vec![JsValue::from_str(OTHER_HASH)],
                 )
                 .await
-                .unwrap()
+                .unwrap(),
             )
-            .unwrap()
+            .unwrap(),
         ));
     }
 
