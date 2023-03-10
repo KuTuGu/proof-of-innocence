@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node -r esbuild-register -- ./js/util.mjs",
+    "test": "node -r esbuild-register -- ./js/util.mjs && wasm-pack test --node",
     "build:js": "esbuild ./js/util.mjs --bundle --minify --platform=node --tree-shaking=true --outfile=output/tornado_bundle.js",
     "build:rs": "wasm-pack build -t nodejs",
     "build": "npm run build:js && npm run build:rs",

@@ -9,10 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with: 
+          submodules: recursive
+      - uses: jetli/wasm-pack-action@v0.4.0
       - name: Test circuit
         run: |
           cd circuit
-          cargo test
+          npm i
+          npm run build:js
+          npm run test
 
   # Compile too slowly
   # zkwasm:
