@@ -1,4 +1,4 @@
-use super::{merkle::TornadoMerkleTree, typ::*};
+use super::typ::*;
 use anyhow::{anyhow, Result};
 use js_sys::Uint8Array;
 use num_bigint::BigUint;
@@ -6,7 +6,7 @@ use num_traits::Num;
 use regex::Regex;
 use wasm_bindgen::JsValue;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Note {
     currency: String,
     amount: String,
@@ -72,37 +72,6 @@ impl Note {
                 let withdraw_list: Vec<EventLog> = serde_json::from_str(&content)?;
                 Ok([deposit_list, withdraw_list].concat())
             }
-        }
-    }
-
-    pub async fn prove(&self, util: &TornadoUtil) -> Result<(Hash, Vec<Hash>, Vec<bool>)> {
-        let mut leaf_index = None;
-        let log_list = self
-            .read_event_log(Some(EventLogType::Deposit), util)
-            .await?;
-        let leaves = log_list
-            .into_iter()
-            .map(|log| match log {
-                EventLog::Deposit(log) => {
-                    let commitment = log.commitment.trim_start_matches("0x").into();
-                    if commitment == self.commitment_hash {
-                        leaf_index = Some(log.leaf_index);
-                    }
-                    commitment
-                }
-                _ => unreachable!(),
-            })
-            .collect::<Vec<String>>();
-
-        match leaf_index {
-            Some(i) => {
-                let t = TornadoMerkleTree::new(leaves);
-                let (element, index) = t.prove(i);
-                Ok((t.root(), element, index))
-            }
-            None => Err(anyhow!(
-                "Deposit log not exist in history, please check the cache file."
-            )),
         }
     }
 

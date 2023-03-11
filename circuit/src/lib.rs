@@ -72,7 +72,7 @@ mod tests {
     const OTHER_HASH: &str = "296137799075f986ce4c0bbbfdade2b96689d7720d2e8b59a84bf48f4afe9ad9";
 
     #[wasm_bindgen_test]
-    async fn test_circuit() {
+    async fn test_success_circuit() {
         assert!(verify(
             serde_json::from_str(
                 &prove(

@@ -91,18 +91,10 @@ impl SparseMerkleTree {
     }
 }
 
+#[derive(Default)]
 pub struct MimcHasher {
     inner: MimcSponge,
     data: Vec<u8>,
-}
-
-impl Default for MimcHasher {
-    fn default() -> Self {
-        Self {
-            inner: MimcSponge::default(),
-            data: vec![],
-        }
-    }
 }
 
 impl Deref for MimcHasher {
